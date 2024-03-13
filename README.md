@@ -4,7 +4,7 @@ This repo aims to deploy recent and upcoming versions of *FLEXseg*, the first to
 
 ## Description
 
-This is the condensed code base to distribute *FLEXseg* to enable on an brain MRI. *FLEXseg* is proven to be capable of handling images at ultra-high resolution $\le 0.6 \text{mm}$ and field strengths $1.5-9.4 \text{T}$.
+This is the condensed code base to distribute *FLEXseg* to enable on an brain MRI. *FLEXseg* is proven to be capable of handling images at ultra-high resolution up to $0.6 \text{mm}$ and field strengths $1.5-9.4 \text{T}$.
 
 This model was trained using an adversarial game for flexible domain adaptation of convolutional neural networks in the context of 3D brain MRI segmentation. If you are looking for code to perform flexible training on your unseen data, please have a look at [FLEXseg_learning](https://github.com/MPI-Neuroinformatics/FLEXseg_learning).
 
