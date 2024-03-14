@@ -1,4 +1,4 @@
-name: FLEXseg
+name: FLEXseg_cpu
 
 channels:
   - pytorch
@@ -16,4 +16,4 @@ dependencies:
   - pytorch::pytorch=2.1.2
   - pytorch::cpuonly
   - pip:
-    - itk=5.3.0
+    - itk==5.3.0

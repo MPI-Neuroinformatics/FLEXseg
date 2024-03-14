@@ -16,4 +16,4 @@ dependencies:
   - pytorch::pytorch=2.1.2
   - pytorch::pytorch-cuda=12.1
   - pip:
-    - itk=5.3.0
+    - itk==5.3.0
