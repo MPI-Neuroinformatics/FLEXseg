@@ -14,6 +14,7 @@ This module aims to apply FLEXseg.
 import argparse
 import os
 from pathlib import Path
+import time
 
 import nibabel as nib
 import numpy as np
@@ -65,10 +66,13 @@ NUM_TYPES = 5
 MODEL_INPUT_SHAPE = [128, 128, 128]
 STANDARDIZATION_SHAPE = [384, 384, 384]
 
-
 # Hardware
-DEVICE = set_up_cuda()
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+if os.environ['CONDA_DEFAULT_ENV'] == "FLEXseg_cpu":
+    DEVICE = torch.device("cpu")
+    os.environ["CUDA_VISIBLE_DEVICES"] = ""
+else:
+    DEVICE = set_up_cuda()
+    os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 # -----------------------------------------------------------------------------
 # Build model
@@ -82,7 +86,7 @@ generator = ResMirror(
     variant="original",
 )
 generator.to(DEVICE)
-generator.load_state_dict(torch.load(MODEL_WEIGHTS_AFP))
+generator.load_state_dict(torch.load(MODEL_WEIGHTS_AFP, map_location=DEVICE))
 
 final_activation_fn = nn.LogSoftmax(dim=1)
 
@@ -126,11 +130,11 @@ def main(args):
     # -------------------------------------------------------------------------
     print("Preparing image...")
     # -------------------------------------------------------------------------
-
+    t_0 = time.time()
     # Check for strange paths
     if not image_afp.is_file():
         if input_path.suffix == ".nii":
-            image_afp = image_afp.with_suffix("")
+            image_afp = image_afp.with_suffix(".nii")
         elif input_path.suffix == ".gz":
             image_afp = image_afp.with_suffix(".nii.gz")
         elif input_path.suffix == ".mgz":
@@ -202,54 +206,73 @@ def main(args):
 
     image_world_space = image_world_space.astype(np.float32, copy=False)
 
+    print(f"Preprocessing done in {time.time() - t_0 :.1f} s.")
     # -------------------------------------------------------------------------
     print("Segmenting...")
     # -------------------------------------------------------------------------
-    data_generator = initialize_cropped_generator(
-        image=torch.from_numpy(image_world_space),
-        batch_size=1,
-        num_cpu_workers=0,
-        num_crops_per_direction=9,
-        crop_size=tuple(MODEL_INPUT_SHAPE),
-    )
-
-    # Prediction
-    with torch.no_grad():
-        y_pred_mask = torch.zeros(
-            (1, NUM_TYPES) + image_world_space.shape,
-            dtype=torch.float,
-            requires_grad=False,
-            device=DEVICE,
+    t_1 = time.time()
+    if (not segmentation_world_space_afp.is_file() or args.overwrite):
+        data_generator = initialize_cropped_generator(
+            image=torch.from_numpy(image_world_space),
+            batch_size=1,
+            num_cpu_workers=0,
+            num_crops_per_direction=9,
+            crop_size=tuple(MODEL_INPUT_SHAPE),
         )
-        y_pred_mask = make_model_prediction(
-            data_generator=data_generator,
-            model=model,
-            prediction=y_pred_mask,
+
+        # Prediction
+        with torch.no_grad():
+            y_pred_mask = torch.zeros(
+                (1, NUM_TYPES) + image_world_space.shape,
+                dtype=torch.float,
+                requires_grad=False,
+                device=DEVICE,
+            )
+            y_pred_mask = make_model_prediction(
+                data_generator=data_generator,
+                model=model,
+                prediction=y_pred_mask,
+            )
+            y_pred_mask = torch.argmax(y_pred_mask, dim=1)
+            y_pred_mask = y_pred_mask.detach().cpu().numpy().astype(np.int16)
+
+        y_pred_mask = np.squeeze(y_pred_mask).astype(np.int16)
+
+        # Saving
+        segmentation_world_space_nii = nib.Nifti1Image(
+            y_pred_mask,
+            world_space_affine,
+            dtype=np.int16,
         )
-        y_pred_mask = torch.argmax(y_pred_mask, dim=1)
-        y_pred_mask = y_pred_mask.detach().cpu().numpy().astype(np.int16)
+        nib.save(segmentation_world_space_nii, segmentation_world_space_afp)
+    else:
+        segmentation_world_space_nii = nib.load(segmentation_world_space_afp)
+        y_pred_mask = segmentation_world_space_nii.dataobj[:]
 
-    y_pred_mask = np.squeeze(y_pred_mask).astype(np.int16)
-
-    # Saving
-    segmentation_world_space_nii = nib.Nifti1Image(
-        y_pred_mask,
-        world_space_affine,
-        dtype=np.int16,
-    )
-    nib.save(segmentation_world_space_nii, segmentation_world_space_afp)
-
+    print(f"Segmentation done in {time.time() - t_1 :.1f} s.")
     # -------------------------------------------------------------------------
     print("Postprocessing...")
     # -------------------------------------------------------------------------
-    if do_transform:
-        seg_transformed, _ = transform_image(
-            image=y_pred_mask.astype(np.uint8),
-            affine_matrix=world_space_affine,
-            target_affine_matrix=affine_raw,
-            target_shape=image_raw.shape,
-            interpolation="majority_voted",
-        )
+    if (not segmentation_afp.is_file() or args.overwrite) and do_transform:
+        if args.use_attentive_postprocessing:
+            seg_transformed, _ = transform_image(
+                image=y_pred_mask.astype(np.uint8),
+                affine_matrix=world_space_affine,
+                target_affine_matrix=affine_raw,
+                target_shape=image_raw.shape,
+                interpolation="majority_voted",
+            )
+        else:
+            seg_transformed, _ = affine_transform_image(
+                image=y_pred_mask.astype(float),
+                affine_matrix=world_space_affine,
+                target_affine_matrix=affine_raw,
+                target_shape=image_raw.shape,
+                interpolation='nearest',
+            )
+            seg_transformed = nib.casting.float_to_int(
+                seg_transformed, "int16")
+
         segmentation_nii = nib.Nifti1Image(
             seg_transformed.astype(np.int16),
             affine_raw,
@@ -257,6 +280,9 @@ def main(args):
         )
         nib.save(segmentation_nii, segmentation_afp)
 
+    print(f"FLEXseg done in {time.time() - t_0 :.1f} s.")
+
+    # disable emptying cache for multiple images to save ~45s.
     torch.cuda.empty_cache()
 
 
@@ -286,6 +312,11 @@ if __name__ == '__main__':
         '--overwrite',
         action="store_true",
         help="Set flag to overwrite possibly existing files.",
+    )
+    parser.add_argument(
+        '--use_attentive_postprocessing',
+        action="store_true",
+        help="Set flag to use attentive but time consuming transformation.",
     )
 
     arguments = parser.parse_args()
