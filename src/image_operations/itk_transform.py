@@ -7,6 +7,7 @@ Created on Tue Mar 12 00:56:39 2024
 """
 
 from typing import Tuple
+import warnings
 
 import itk
 import numpy as np
@@ -174,6 +175,11 @@ def affine_transform_image(
         resampled)
 
     if image_resampled.dtype != image.dtype:
-        image_resampled = image_resampled.astype(image.dtype)
+        if np.issubdtype(image.dtype, np.integer):
+            image_resampled = np.rint(image_resampled, dtype=image.dtype)
+        elif np.issubdtype(image.dtype, np.floating):
+            image_resampled = image_resampled.astype(image.dtype)
+        else:
+            warnings.warn(f"Unsupported dtype {image.dtype}", Warning)
 
     return image_resampled, affine_resampled
