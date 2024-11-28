@@ -39,7 +39,21 @@ from model_predictions import (
     initialize_cropped_generator,
     make_model_prediction,
 )
-from model.resnet import ResMirror
+
+# experiment package
+# from exp_f8472e3be0f14e6d8302b6acfdc6c0bb_params import (
+#     generator,
+#     MODEL_WEIGHTS_RFP,
+#     NUM_TYPES,
+#     preprocessing,
+# )
+from exp_33107737c5df4abb993365f447222e69_params import (
+    generator,
+    MODEL_WEIGHTS_RFP,
+    NUM_TYPES,
+    preprocessing,
+)
+
 
 # -----------------------------------------------------------------------------
 # Paths and Definitions
@@ -51,20 +65,9 @@ SEGMENTATION_RFP = "segmentation.nii.gz"
 
 TARGET_AFFINE = .6 * np.eye(3)
 
-MODEL_WEIGHTS_AFP = (
-    Path.cwd().parent
-    / "model_weights/f8472e3be0f14e6d8302b6acfdc6c0bb_segmentation.pt"
-)
-NUM_TYPES = 5
-# Types = {
-#     0: "background",
-#     1: "cortical_gm_left",
-#     2: "cortical_gm_right",
-#     3: "cerebral_wm_left",
-#     4: "cerebral_wm_right",
-# }
+MODEL_WEIGHTS_AFP = (Path.cwd().parent / MODEL_WEIGHTS_RFP)
+
 MODEL_INPUT_SHAPE = [128, 128, 128]
-STANDARDIZATION_SHAPE = [384, 384, 384]
 
 # Hardware
 if os.environ['CONDA_DEFAULT_ENV'] == "FLEXseg_cpu":
@@ -76,17 +79,11 @@ else:
 
 # -----------------------------------------------------------------------------
 # Build model
-generator = ResMirror(
-    input_channels=1,
-    output_channels=NUM_TYPES,
-    num_planes=48,
-    name_block="bottleneck",
-    num_blocks=[3, 4, 23, 3],
-    activation="relu",
-    variant="original",
-)
 generator.to(DEVICE)
-generator.load_state_dict(torch.load(MODEL_WEIGHTS_AFP, map_location=DEVICE))
+generator.load_state_dict(torch.load(
+    Path.cwd().parent / MODEL_WEIGHTS_RFP,
+    map_location=DEVICE),
+)
 
 final_activation_fn = nn.LogSoftmax(dim=1)
 
@@ -173,23 +170,10 @@ def main(args):
             image_world_space = image_cleaned.copy().astype(np.float32)
             world_space_affine = affine_raw.copy()
 
-        # standardize
-        img_numel = np.prod(image_world_space.shape)
-        norm_numel = np.prod(STANDARDIZATION_SHAPE)
-
-        mean = np.mean(np.append(
-            image_world_space.flatten(),
-            np.zeros(norm_numel - img_numel),
-        ))
-        std = np.std(np.append(
-            image_world_space.flatten(),
-            np.zeros(norm_numel - img_numel),
-        ))
-        image_world_space = np.divide(
-            np.subtract(image_world_space, mean, out=image_world_space),
-            std,
-            out=image_world_space
-        ).astype(np.float32)
+        # experiment specific preprocessing
+        image_world_space, world_space_affine = preprocessing(
+            image_world_space, world_space_affine
+        )
 
         image_world_space_nii = nib.Nifti1Image(
             image_world_space,
