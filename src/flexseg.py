@@ -41,13 +41,12 @@ from model_predictions import (
 )
 
 # experiment package
-# from exp_f8472e3be0f14e6d8302b6acfdc6c0bb_params import (
-#     generator,
-#     MODEL_WEIGHTS_RFP,
-#     NUM_TYPES,
-#     preprocessing,
-# )
-from exp_33107737c5df4abb993365f447222e69_params import (
+# from exp_f8472e3be0f14e6d8302b6acfdc6c0bb_params import (  # initial FLEXseg
+# from exp_33107737c5df4abb993365f447222e69_params import (  # exp with CSF
+# from exp_9d4f375c2bdc4b2fbc02bdd399fcd025_params import (  # exp with higher adversarial lambda
+# from exp_f4c55a56e31949448898d7df0c4166a8_params import (  # exp with weighted classes
+# from exp_f210acd3840c41f79631547e41ecbac5_params import (  # exp with weighted_classes_with_higher_lambda_adv
+from exp_fdc29906ff3344bb914b7575c9dd1f91_params import (  # weighted classes and warm up discriminator training
     generator,
     MODEL_WEIGHTS_RFP,
     NUM_TYPES,
@@ -85,7 +84,8 @@ generator.load_state_dict(torch.load(
     map_location=DEVICE),
 )
 
-final_activation_fn = nn.LogSoftmax(dim=1)
+final_activation_fn = nn.LogSoftmax(dim=1)  # original
+# final_activation_fn = nn.Softmax(dim=1)  # need this for probabilities
 
 model = nn.Sequential(generator, final_activation_fn)
 model.eval()
@@ -216,7 +216,27 @@ def main(args):
                 data_generator=data_generator,
                 model=model,
                 prediction=y_pred_mask,
+                normalize=False,
             )
+
+            # Store probabilities
+            if args.store_probabilities:
+                y_probabilities = y_pred_mask[0].detach(
+                ).cpu().numpy().astype(float)
+                for label in range(NUM_TYPES):
+                    y_probability = y_probabilities[label]
+                    probability_world_space_nii = nib.Nifti1Image(
+                        y_probability,
+                        world_space_affine,
+                        dtype=np.float32,
+                    )
+                    nib.save(
+                        probability_world_space_nii,
+                        segmentation_world_space_afp.with_stem(
+                            f"segmentation_0p6mm_{label}.nii"
+                        ),
+                    )
+
             y_pred_mask = torch.argmax(y_pred_mask, dim=1)
             y_pred_mask = y_pred_mask.detach().cpu().numpy().astype(np.int16)
 
@@ -296,6 +316,11 @@ if __name__ == '__main__':
         '--overwrite',
         action="store_true",
         help="Set flag to overwrite possibly existing files.",
+    )
+    parser.add_argument(
+        '--store_probabilities',
+        action="store_true",
+        help="Set flag to save probability masks.",
     )
     parser.add_argument(
         '--use_attentive_postprocessing',

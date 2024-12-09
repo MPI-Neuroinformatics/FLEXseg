@@ -134,6 +134,7 @@ def make_model_prediction(
         data_generator: DataLoader,
         model: nn.Module,
         prediction: torch.Tensor,
+        normalize: bool = True,
 ) -> torch.Tensor:
     """
     Make a models prediction on a data sample.
@@ -153,6 +154,14 @@ def make_model_prediction(
         Models prediction on data_generator.
 
     """
+    if normalize:
+        normalization_counter = torch.zeros(
+            prediction.shape,
+            requires_grad=False,
+            dtype=int,
+            device=prediction.device,
+        )
+
     for sample_batched in data_generator:
         image_crop = sample_batched['image'].to(prediction.device)
         start_positions = sample_batched['coord']
@@ -165,6 +174,14 @@ def make_model_prediction(
             prediction[:, :, start[0]:end[0], start[1]:end[1],
                        start[2]:end[2]] += crop_prediction[i_batch:i_batch + 1]
 
+            if normalize:
+                normalization_counter[:, :, start[0]:end[0], start[1]:end[1],
+                                      start[2]:end[2]] += 1
+
     del start_positions, end, image_crop, crop_prediction
+
+    if normalize:
+        prediction = torch.div(prediction, normalization_counter)
+        del normalization_counter
 
     return prediction
