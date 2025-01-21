@@ -17,6 +17,8 @@ import torch
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
 
+from mrimage_processing.spatial_transformation.crop_image import crop_image
+
 
 def distribute_regions_uniformely(
         region: List[int],
@@ -53,21 +55,6 @@ def distribute_regions_uniformely(
     positions = np.multiply(subregions, position_distance).astype(int)
 
     return positions
-
-
-def crop_image(
-    image: Union[np.ndarray, torch.tensor],
-    start: Tuple[int, int, int],
-    size: Tuple[int, int, int],
-) -> np.ndarray:
-    """Remove unwanted outer areas from an 3D image."""
-    if size > image.shape:
-        raise ValueError(
-            f'Target size {size} is larger than image {image.shape}.'
-        )
-    end = np.add(start, size)
-
-    return image[start[0]:end[0], start[1]:end[1], start[2]:end[2]]
 
 
 class MRICropFirstVoxelCoordinates(Dataset):

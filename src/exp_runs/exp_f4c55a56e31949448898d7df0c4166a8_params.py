@@ -8,12 +8,12 @@ Created on Thu Nov 28 09:22:35 2024
 
 import numpy as np
 
-from image_operations.feature_scaling import quantile_clipping
+from mrimage_processing.intensity_modification.feature_scaling import quantile_clipping
 from model.resnet import ResMirror
 
 
-# experiment with weighted_classes_with_higher_lambda_adv
-EXPERIMENT_ID = "f210acd3840c41f79631547e41ecbac5"
+# experiment with weighted classes
+EXPERIMENT_ID = "f4c55a56e31949448898d7df0c4166a8"
 
 MODEL_WEIGHTS_RFP = f"model_weights/{EXPERIMENT_ID}_segmentation_state_dict.pth"
 NUM_TYPES = 6

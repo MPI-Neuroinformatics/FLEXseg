@@ -8,14 +8,13 @@ Created on Thu Nov 28 09:22:35 2024
 
 import numpy as np
 
-from image_operations.feature_scaling import quantile_clipping
+from mrimage_processing.intensity_modification.feature_scaling import quantile_clipping
 from model.resnet import ResMirror
 
 
-# experiment with weighted classes and warm up discriminator training
-EXPERIMENT_ID = "fdc29906ff3344bb914b7575c9dd1f91"
+EXPERIMENT_ID = "33107737c5df4abb993365f447222e69"
 
-MODEL_WEIGHTS_RFP = f"model_weights/{EXPERIMENT_ID}_segmentation_state_dict.pth"
+MODEL_WEIGHTS_RFP = f"model_weights/{EXPERIMENT_ID}_segmentation.pt"
 NUM_TYPES = 6
 # Types = {
 #   "0": "background",

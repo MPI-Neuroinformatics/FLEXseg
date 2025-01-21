@@ -8,13 +8,14 @@ Created on Thu Nov 28 09:22:35 2024
 
 import numpy as np
 
-from image_operations.feature_scaling import quantile_clipping
+from mrimage_processing.intensity_modification.feature_scaling import quantile_clipping
 from model.resnet import ResMirror
 
 
-EXPERIMENT_ID = "33107737c5df4abb993365f447222e69"
+# experiment with higher adversarial lambda
+EXPERIMENT_ID = "9d4f375c2bdc4b2fbc02bdd399fcd025"
 
-MODEL_WEIGHTS_RFP = f"model_weights/{EXPERIMENT_ID}_segmentation.pt"
+MODEL_WEIGHTS_RFP = f"model_weights/{EXPERIMENT_ID}_segmentation_state_dict.pth"
 NUM_TYPES = 6
 # Types = {
 #   "0": "background",
