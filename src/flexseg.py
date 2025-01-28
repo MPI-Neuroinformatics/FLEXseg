@@ -16,14 +16,16 @@ import os
 from pathlib import Path
 import time
 from typing import Callable, Tuple
+import sys
 
 import nibabel as nib
 import numpy as np
 import torch
 import torch.nn as nn
 
-# change cwd to directory of this file
+# change cwd to directory of this file include submodules
 os.chdir(Path(__file__).parent.resolve())  # nopep8
+sys.path.append(Path.cwd().parent / "mrimage_processing")  # nopep8
 
 # custom packages
 from mrimage_processing.data_flow.nifti_operations import read_nii, save_nii
@@ -107,7 +109,7 @@ def pick_model(
     """
     if run_id == "f8472e3be0f14e6d8302b6acfdc6c0bb":
         exp_params = exp_f8472e3be0f14e6d8302b6acfdc6c0bb_params
-    elif run_id == "fdc29906ff3344bb914b7575c9dd1f91":
+    elif run_id == "f210acd3840c41f79631547e41ecbac5":
         exp_params = exp_f210acd3840c41f79631547e41ecbac5_params
     else:
         raise ValueError("No valid model choice.")
@@ -372,7 +374,7 @@ if __name__ == '__main__':
     )
     parser.add_argument(
         '--model_run_id',
-        default='fdc29906ff3344bb914b7575c9dd1f91',
+        default='f210acd3840c41f79631547e41ecbac5',
         type=str,
         help='Specify which model and parameter set to take.',
     )
