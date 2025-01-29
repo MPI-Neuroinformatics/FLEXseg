@@ -51,7 +51,7 @@ from model_predictions import (
 # initial FLEXseg
 from exp_runs import exp_f8472e3be0f14e6d8302b6acfdc6c0bb_params
 # with CSF, weighted classes and warm up discriminator
-from exp_runs import exp_f210acd3840c41f79631547e41ecbac5_params
+from exp_runs import exp_fdc29906ff3344bb914b7575c9dd1f91_params
 
 
 # -----------------------------------------------------------------------------
@@ -108,8 +108,8 @@ def pick_model(
     """
     if run_id == "f8472e3be0f14e6d8302b6acfdc6c0bb":
         exp_params = exp_f8472e3be0f14e6d8302b6acfdc6c0bb_params
-    elif run_id == "f210acd3840c41f79631547e41ecbac5":
-        exp_params = exp_f210acd3840c41f79631547e41ecbac5_params
+    elif run_id == "fdc29906ff3344bb914b7575c9dd1f91":
+        exp_params = exp_fdc29906ff3344bb914b7575c9dd1f91_params
     else:
         raise ValueError("No valid model choice.")
 
@@ -376,7 +376,7 @@ if __name__ == '__main__':
     )
     parser.add_argument(
         '--model_run_id',
-        default='f210acd3840c41f79631547e41ecbac5',
+        default='fdc29906ff3344bb914b7575c9dd1f91',
         type=str,
         help='Specify which model and parameter set to take.',
     )
