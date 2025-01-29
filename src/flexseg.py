@@ -25,7 +25,8 @@ import torch.nn as nn
 
 # change cwd to directory of this file include submodules
 os.chdir(Path(__file__).parent.resolve())  # nopep8
-sys.path.append(Path.cwd().parent / "mrimage_processing")  # nopep8
+sys.path.append(str(Path.cwd().parent / "src"))  # nopep8
+sys.path.append(str(Path.cwd().parent / "mrimage_processing"))  # nopep8
 
 # custom packages
 from mrimage_processing.data_flow.nifti_operations import read_nii, save_nii
@@ -61,8 +62,6 @@ IMAGE_0P6MM_RFP = "image_0p6mm.nii.gz"
 SEGMENTATION_0P6MM_RFP = "segmentation_0p6mm.nii.gz"
 SEGMENTATION_RFP = "segmentation.nii.gz"
 
-TARGET_AFFINE = .6 * np.eye(3)
-NUM_CROPS_PER_DIRECTION = 9
 MODEL_INPUT_SHAPE = [128, 128, 128]
 
 # Hardware
@@ -172,6 +171,9 @@ def main(args):
     if args.ultra_high:
         TARGET_AFFINE = .3 * np.eye(3)
         NUM_CROPS_PER_DIRECTION = 18
+    else:
+        TARGET_AFFINE = .6 * np.eye(3)
+        NUM_CROPS_PER_DIRECTION = 9
 
     # -------------------------------------------------------------------------
     print("Preparing image...")
