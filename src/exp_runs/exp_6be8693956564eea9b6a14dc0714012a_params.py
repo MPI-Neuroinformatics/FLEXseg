@@ -9,11 +9,11 @@ Created on Thu Nov 28 09:22:35 2024
 import numpy as np
 
 from mrimage_processing.intensity_modification.feature_scaling import quantile_clipping
-from model.resnet import ResMirror
+from model.unet import UNet
 
 
-# experiment with higher adversarial lambda
-EXPERIMENT_ID = "9d4f375c2bdc4b2fbc02bdd399fcd025"
+# experiment with UNet
+EXPERIMENT_ID = "6be8693956564eea9b6a14dc0714012a"
 
 MODEL_WEIGHTS_RFP = f"model_weights/{EXPERIMENT_ID}_segmentation_state_dict.pth"
 NUM_TYPES = 6
@@ -29,14 +29,9 @@ MODEL_INPUT_SHAPE = [128, 128, 128]
 MIN_SHAPE = [256, 256, 256]
 MAX_SHAPE = [512, 512, 512]
 
-generator = ResMirror(
+generator = UNet(
     input_channels=1,
     output_channels=NUM_TYPES,
-    num_planes=64,
-    name_block="bottleneck",
-    num_blocks=[3, 4, 23, 3],
-    activation="relu",
-    variant="original",
 )
 
 

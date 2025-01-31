@@ -9,11 +9,11 @@ Created on Thu Nov 28 09:22:35 2024
 import numpy as np
 
 from mrimage_processing.intensity_modification.feature_scaling import quantile_clipping
-from model.resnet import ResMirror
+from model.convnext import ConvUNeXt
 
 
-# experiment with weighted classes
-EXPERIMENT_ID = "f4c55a56e31949448898d7df0c4166a8"
+# experiment with ConvNeXt
+EXPERIMENT_ID = "62120809342741c8b32e0b04a3ec7296"
 
 MODEL_WEIGHTS_RFP = f"model_weights/{EXPERIMENT_ID}_segmentation_state_dict.pth"
 NUM_TYPES = 6
@@ -29,14 +29,16 @@ MODEL_INPUT_SHAPE = [128, 128, 128]
 MIN_SHAPE = [256, 256, 256]
 MAX_SHAPE = [512, 512, 512]
 
-generator = ResMirror(
+generator = ConvUNeXt(
     input_channels=1,
     output_channels=NUM_TYPES,
-    num_planes=64,
-    name_block="bottleneck",
-    num_blocks=[3, 4, 23, 3],
-    activation="relu",
-    variant="original",
+    num_blocks=[3, 3, 27, 3],
+    num_channels_stage=[64, 128, 256, 512, 1024],
+    num_blocks_decoder=[3, 9, 3, 3],
+    max_dropout_rate=0.2,
+    layer_scale_init_value=0.0,
+    encoder_normalization="batch",
+    decoder_normalitation="instance",
 )
 
 

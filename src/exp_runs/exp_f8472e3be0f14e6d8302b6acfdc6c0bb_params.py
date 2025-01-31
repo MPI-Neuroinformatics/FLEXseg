@@ -4,6 +4,8 @@
 Created on Thu Nov 28 09:22:35 2024
 
 @author: jsteiglechner
+
+As presented in SNS Tübingen 2024.
 """
 
 import numpy as np

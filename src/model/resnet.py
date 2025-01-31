@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from model.activation_functions import activations
+from model.model_utils import activations
 
 
 def conv3x3x3(num_planes_in, num_planes_out, stride=1):
