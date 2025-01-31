@@ -50,8 +50,14 @@ from model_predictions import (
 # experiment package
 # initial FLEXseg
 from exp_runs import exp_f8472e3be0f14e6d8302b6acfdc6c0bb_params
+# with CSF, weighted classes
+from exp_runs import exp_f210acd3840c41f79631547e41ecbac5_params
 # with CSF, weighted classes and warm up discriminator
 from exp_runs import exp_fdc29906ff3344bb914b7575c9dd1f91_params
+# unet
+from exp_runs import exp_6be8693956564eea9b6a14dc0714012a_params
+# convnext
+from exp_runs import exp_62120809342741c8b32e0b04a3ec7296_params
 
 
 # -----------------------------------------------------------------------------
@@ -107,9 +113,20 @@ def pick_model(
 
     """
     if run_id == "f8472e3be0f14e6d8302b6acfdc6c0bb":
+        print("Original FLEXseg")
         exp_params = exp_f8472e3be0f14e6d8302b6acfdc6c0bb_params
     elif run_id == "fdc29906ff3344bb914b7575c9dd1f91":
+        print("FLEXseg with pretraining")
+        exp_params = exp_f210acd3840c41f79631547e41ecbac5_params
+    elif run_id == "fdc29906ff3344bb914b7575c9dd1f91":
+        print("FLEXseg with pretraining and warm up")
         exp_params = exp_fdc29906ff3344bb914b7575c9dd1f91_params
+    elif run_id == "fdc29906ff3344bb914b7575c9dd1f91":
+        print("FLEXseg with convnext")
+        exp_params = exp_62120809342741c8b32e0b04a3ec7296_params
+    elif run_id == "fdc29906ff3344bb914b7575c9dd1f91":
+        print("FLEXseg with unet")
+        exp_params = exp_6be8693956564eea9b6a14dc0714012a_params
     else:
         raise ValueError("No valid model choice.")
 
