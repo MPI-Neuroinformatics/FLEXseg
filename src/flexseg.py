@@ -136,6 +136,7 @@ def pick_model(
         Path.cwd().parent / exp_params.MODEL_WEIGHTS_RFP,
         map_location=DEVICE),
     )
+    generator.eval()
 
     if probabilities:
         final_activation_fn = nn.Softmax(dim=1)
