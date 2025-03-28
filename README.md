@@ -10,13 +10,15 @@ This model was trained using an adversarial game for flexible domain adaptation 
 
 ## New Features and Updates
 
-12/03/2024: $FLEXseg^\beta$ **is now publicly available** to allow extensive testing and ignite feedback to improve its capabilities.
+28/03/2025: $FLEXseg^\dag$ **is now publicly available**. It provides a better accuracy achieved by intense pretraining. 
+12/03/2024: $FLEXseg^\beta$ is now publicly available to allow extensive testing and ignite feedback to improve its capabilities.
 
 ## Usage
 
 ### Set Up
 1. Clone this repository.
-2. Create a virtual environment (i.e., with pip or conda) and install all the required packages. Installation is checked for Python 3.10. Here, we give you the minimal commands to install the required packages using conda:
+2. Pull submodule: [mrimage_processing](https://gitlab.tuebingen.mpg.de/jsteiglechner/mr-image_processing)
+3. Create a virtual environment (i.e., with pip or conda) and install all the required packages. Installation is checked for Python 3.10. Here, we give you the minimal commands to install the required packages using conda:
   ```bash
   # Conda GPU
   conda env create -f env.yml
@@ -24,13 +26,13 @@ This model was trained using an adversarial game for flexible domain adaptation 
   # Conda CPU only
   conda env create -f env_cpu.yml
   ```
-3. Contact [@jsteiglechner](https://github.com/jsteiglechner) to obtain recent model weights. Then copy them to `./model_weights/f8472e3be0f14e6d8302b6acfdc6c0bb_segmentation.pt`.
+4. Download model weights from [FLEXseg model weights](https://keeper.mpdl.mpg.de/d/9edc7dd2f13746f3b27b/) or contact [@jsteiglechner](https://github.com/jsteiglechner) to obtain recent model weights. Then copy them to `./model_weights/`.
 
 ### Just Let It Run.
 Once all requirements are installed, you can run *FLEXseg* on your own data by:
 ```bash
 cd <flexseg_repo>/src
-conda activate flexseg_env
+conda activate FLEXseg
 python -m flexseg --input_path <input> --output_path <output> --subject <subject>
 ```
 where:
