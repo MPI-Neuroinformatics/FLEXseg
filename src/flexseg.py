@@ -15,31 +15,43 @@ import argparse
 import os
 from pathlib import Path
 import time
+from typing import Callable, Tuple
+import sys
 
 import nibabel as nib
 import numpy as np
 import torch
 import torch.nn as nn
 
-# change cwd to directory of this file
+# change cwd to directory of this file include submodules
 os.chdir(Path(__file__).parent.resolve())  # nopep8
+sys.path.append(str(Path.cwd().parent / "src"))  # nopep8
+sys.path.append(str(Path.cwd().parent / "mrimage_processing"))  # nopep8
 
 # custom packages
-from image_operations.transform_image import (
-    transform_image,
-)
-from use_gpu import set_up_cuda
-from image_operations.correction import (
+from mrimage_processing.data_flow.nifti_operations import read_nii, save_nii
+from mrimage_processing.intensity_modification.correction import (
     clean_up_image,
 )
-from image_operations.itk_transform import (
-    affine_transform_image,
+from mrimage_processing.spatial_transformation.itk_transform import (
+    affine_transform_image
 )
+from mrimage_processing.spatial_transformation.np_transform import (
+    affine_transform_image as custom_transform_image
+)
+
+from use_gpu import set_up_cuda
+
 from model_predictions import (
     initialize_cropped_generator,
     make_model_prediction,
 )
-from model.resnet import ResMirror
+
+# experiment package
+# initial FLEXseg
+from exp_runs import exp_f8472e3be0f14e6d8302b6acfdc6c0bb_params
+# FLEXseg^\dag
+from exp_runs import exp_fdc29906ff3344bb914b7575c9dd1f91_params
 
 # -----------------------------------------------------------------------------
 # Paths and Definitions
@@ -49,22 +61,7 @@ IMAGE_0P6MM_RFP = "image_0p6mm.nii.gz"
 SEGMENTATION_0P6MM_RFP = "segmentation_0p6mm.nii.gz"
 SEGMENTATION_RFP = "segmentation.nii.gz"
 
-TARGET_AFFINE = .6 * np.eye(3)
-
-MODEL_WEIGHTS_AFP = (
-    Path.cwd().parent
-    / "model_weights/f8472e3be0f14e6d8302b6acfdc6c0bb_segmentation.pt"
-)
-NUM_TYPES = 5
-# Types = {
-#     0: "background",
-#     1: "cortical_gm_left",
-#     2: "cortical_gm_right",
-#     3: "cerebral_wm_left",
-#     4: "cerebral_wm_right",
-# }
 MODEL_INPUT_SHAPE = [128, 128, 128]
-STANDARDIZATION_SHAPE = [384, 384, 384]
 
 # Hardware
 if os.environ['CONDA_DEFAULT_ENV'] == "FLEXseg_cpu":
@@ -76,32 +73,78 @@ else:
 
 # -----------------------------------------------------------------------------
 # Build model
-generator = ResMirror(
-    input_channels=1,
-    output_channels=NUM_TYPES,
-    num_planes=48,
-    name_block="bottleneck",
-    num_blocks=[3, 4, 23, 3],
-    activation="relu",
-    variant="original",
-)
-generator.to(DEVICE)
-generator.load_state_dict(torch.load(MODEL_WEIGHTS_AFP, map_location=DEVICE))
 
-final_activation_fn = nn.LogSoftmax(dim=1)
 
-model = nn.Sequential(generator, final_activation_fn)
-model.eval()
+def pick_model(
+        run_id: str,
+        probabilities: bool = False,
+) -> Tuple[nn.Module, int, Callable]:
+    """
+    Pick model from run id.
+
+    Parameters
+    ----------
+    run_id : str
+        Experiment run ID.
+    probabilities : bool, optional
+        If the model should give probabilities per type per voxel. The default
+        is False.
+
+    Raises
+    ------
+    ValueError
+        If no valid model selected.
+
+    Returns
+    -------
+    model : nn.Module
+        Model to predict segmentation.
+    num_types : int
+        Number of types that should be predicted.
+    preprocessing_fn : Callable
+        Function to preprocess MR image according to experimental setup.
+
+    """
+    if run_id == "f8472e3be0f14e6d8302b6acfdc6c0bb":
+        print("Original FLEXseg")
+        exp_params = exp_f8472e3be0f14e6d8302b6acfdc6c0bb_params
+    elif run_id == "fdc29906ff3344bb914b7575c9dd1f91":
+        print("FLEXseg^\dag")
+        exp_params = exp_fdc29906ff3344bb914b7575c9dd1f91_params
+    else:
+        raise ValueError("No valid model choice.")
+
+    generator = exp_params.generator
+    generator.to(DEVICE)
+    generator.load_state_dict(torch.load(
+        Path.cwd().parent / exp_params.MODEL_WEIGHTS_RFP,
+        map_location=DEVICE),
+    )
+    generator.eval()
+
+    if probabilities:
+        final_activation_fn = nn.Softmax(dim=1)
+    else:
+        final_activation_fn = nn.LogSoftmax(dim=1)
+    model = nn.Sequential(generator, final_activation_fn)
+    model.eval()
+
+    return model, exp_params.NUM_TYPES, exp_params.preprocessing
 
 
 # -----------------------------------------------------------------------------
 # Main
 # -----------------------------------------------------------------------------
+
+
 def main(args):
 
     input_path = Path(args.input_path)
     output_path = Path(args.output_path)
     subject = Path(args.subject)
+
+    model, num_types, preprocessing = pick_model(
+        args.model_run_id, args.store_probabilities)
 
     # Check input path
     if not input_path.is_absolute():
@@ -127,6 +170,13 @@ def main(args):
     segmentation_world_space_afp = working_dir_adp / SEGMENTATION_0P6MM_RFP
     segmentation_afp = working_dir_adp / SEGMENTATION_RFP
 
+    if args.ultra_high:
+        TARGET_AFFINE = .3 * np.eye(3)
+        NUM_CROPS_PER_DIRECTION = 18
+    else:
+        TARGET_AFFINE = .6 * np.eye(3)
+        NUM_CROPS_PER_DIRECTION = 9
+
     # -------------------------------------------------------------------------
     print("Preparing image...")
     # -------------------------------------------------------------------------
@@ -148,9 +198,7 @@ def main(args):
             except OSError:
                 image_afp = input_path
 
-    image_nii = nib.load(image_afp)
-    image_raw = image_nii.dataobj[:]
-    affine_raw = image_nii.affine
+    image_raw, affine_raw = read_nii(image_afp)
 
     # -------------------------------------------------------------------------
     print("Preprocessing...")
@@ -173,35 +221,19 @@ def main(args):
             image_world_space = image_cleaned.copy().astype(np.float32)
             world_space_affine = affine_raw.copy()
 
-        # standardize
-        img_numel = np.prod(image_world_space.shape)
-        norm_numel = np.prod(STANDARDIZATION_SHAPE)
-
-        mean = np.mean(np.append(
-            image_world_space.flatten(),
-            np.zeros(norm_numel - img_numel),
-        ))
-        std = np.std(np.append(
-            image_world_space.flatten(),
-            np.zeros(norm_numel - img_numel),
-        ))
-        image_world_space = np.divide(
-            np.subtract(image_world_space, mean, out=image_world_space),
-            std,
-            out=image_world_space
-        ).astype(np.float32)
-
-        image_world_space_nii = nib.Nifti1Image(
-            image_world_space,
-            world_space_affine,
+        # experiment specific preprocessing
+        image_world_space, world_space_affine = preprocessing(
+            image_world_space, world_space_affine
+        )
+        save_nii(
+            image=image_world_space,
+            affine_matrix=world_space_affine,
+            filepath=image_world_space_afp,
             dtype=np.float32,
         )
-        nib.save(image_world_space_nii, image_world_space_afp)
 
     else:
-        image_world_space_nii = nib.load(image_world_space_afp)
-        image_world_space = image_world_space_nii.dataobj[:]
-        world_space_affine = image_world_space_nii.affine
+        image_world_space, world_space_affine = read_nii(image_world_space_afp)
         do_transform = True
 
     image_world_space = image_world_space.astype(np.float32, copy=False)
@@ -216,14 +248,14 @@ def main(args):
             image=torch.from_numpy(image_world_space),
             batch_size=1,
             num_cpu_workers=0,
-            num_crops_per_direction=9,
+            num_crops_per_direction=NUM_CROPS_PER_DIRECTION,
             crop_size=tuple(MODEL_INPUT_SHAPE),
         )
 
         # Prediction
         with torch.no_grad():
             y_pred_mask = torch.zeros(
-                (1, NUM_TYPES) + image_world_space.shape,
+                (1, num_types) + image_world_space.shape,
                 dtype=torch.float,
                 requires_grad=False,
                 device=DEVICE,
@@ -232,22 +264,38 @@ def main(args):
                 data_generator=data_generator,
                 model=model,
                 prediction=y_pred_mask,
+                normalize=False,
             )
+
+            # Store probabilities
+            if args.store_probabilities:
+                y_probabilities = y_pred_mask[0].detach(
+                ).cpu().numpy().astype(float)
+                for label in range(num_types):
+                    y_probability = y_probabilities[label]
+                    save_nii(
+                        image=y_probability,
+                        affine_matrix=world_space_affine,
+                        filepath=segmentation_world_space_afp.with_stem(
+                            f"segmentation_0p6mm_{label}.nii"
+                        ),
+                        dtype=np.float32,
+                    )
+
             y_pred_mask = torch.argmax(y_pred_mask, dim=1)
             y_pred_mask = y_pred_mask.detach().cpu().numpy().astype(np.int16)
 
         y_pred_mask = np.squeeze(y_pred_mask).astype(np.int16)
 
         # Saving
-        segmentation_world_space_nii = nib.Nifti1Image(
-            y_pred_mask,
-            world_space_affine,
+        save_nii(
+            image=y_pred_mask,
+            affine_matrix=world_space_affine,
+            filepath=segmentation_world_space_afp,
             dtype=np.int16,
         )
-        nib.save(segmentation_world_space_nii, segmentation_world_space_afp)
     else:
-        segmentation_world_space_nii = nib.load(segmentation_world_space_afp)
-        y_pred_mask = segmentation_world_space_nii.dataobj[:]
+        y_pred_mask, _ = read_nii(segmentation_world_space_afp)
 
     print(f"Segmentation done in {time.time() - t_1 :.1f} s.")
     # -------------------------------------------------------------------------
@@ -255,7 +303,7 @@ def main(args):
     # -------------------------------------------------------------------------
     if (not segmentation_afp.is_file() or args.overwrite) and do_transform:
         if args.use_attentive_postprocessing:
-            seg_transformed, _ = transform_image(
+            seg_transformed, _ = custom_transform_image(
                 image=y_pred_mask.astype(np.uint8),
                 affine_matrix=world_space_affine,
                 target_affine_matrix=affine_raw,
@@ -273,12 +321,12 @@ def main(args):
             seg_transformed = nib.casting.float_to_int(
                 seg_transformed, "int16")
 
-        segmentation_nii = nib.Nifti1Image(
-            seg_transformed.astype(np.int16),
-            affine_raw,
+        save_nii(
+            image=seg_transformed.astype(np.int16),
+            affine_matrix=affine_raw,
+            filepath=segmentation_afp,
             dtype=np.int16,
         )
-        nib.save(segmentation_nii, segmentation_afp)
 
     print(f"FLEXseg done in {time.time() - t_0 :.1f} s.")
 
@@ -314,9 +362,25 @@ if __name__ == '__main__':
         help="Set flag to overwrite possibly existing files.",
     )
     parser.add_argument(
+        '--store_probabilities',
+        action="store_true",
+        help="Set flag to save probability masks.",
+    )
+    parser.add_argument(
+        '--ultra_high',
+        action='store_true',
+        help="Set flag to segment on doubled resolution.",
+    )
+    parser.add_argument(
         '--use_attentive_postprocessing',
         action="store_true",
         help="Set flag to use attentive but time consuming transformation.",
+    )
+    parser.add_argument(
+        '--model_run_id',
+        default='fdc29906ff3344bb914b7575c9dd1f91',
+        type=str,
+        help='Specify which model and parameter set to take.',
     )
 
     arguments = parser.parse_args()
