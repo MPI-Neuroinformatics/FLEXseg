@@ -1,0 +1,3 @@
+[submodule "mrimage_processing"]
+	path = mrimage_processing
+	url = https://gitlab.tuebingen.mpg.de/jsteiglechner/mr-image_processing
