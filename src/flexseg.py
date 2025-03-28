@@ -109,7 +109,7 @@ def pick_model(
         print("Original FLEXseg")
         exp_params = exp_f8472e3be0f14e6d8302b6acfdc6c0bb_params
     elif run_id == "fdc29906ff3344bb914b7575c9dd1f91":
-        print("FLEXseg^\dag")
+        print("FLEXseg_dagger")
         exp_params = exp_fdc29906ff3344bb914b7575c9dd1f91_params
     else:
         raise ValueError("No valid model choice.")
